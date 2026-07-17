@@ -381,7 +381,7 @@
     try{
       const res = await fetch(JB_BASE, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {'Content-Type': 'text/plain'},
         body: JSON.stringify([])
       });
       if(!res.ok) throw new Error('HTTPステータス ' + res.status);
@@ -433,7 +433,7 @@
       if(arr.length > 50) arr = arr.slice(0, 50);
       await fetch(JB_BASE + '/' + roomCode, {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {'Content-Type': 'text/plain'},
         body: JSON.stringify(arr)
       });
       renderRoomLog(arr);
@@ -577,7 +577,7 @@
       try{
         await fetch(JB_BASE + '/' + roomCode, {
           method: 'PUT',
-          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          headers: {'Content-Type': 'text/plain'},
           body: JSON.stringify([])
         });
         renderRoomLog([]);
@@ -627,3 +627,4 @@
 </script>
 </body>
 </html>
+  
