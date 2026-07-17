@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M.R.端末 — 判定支援ユニット</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0a0b07;
+    --panel:#15170f;
+    --panel2:#1c1f14;
+    --edge:#33361f;
+    --blood:#b0272b;
+    --blood-bright:#ff4a4a;
+    --warn:#c9a227;
+    --toxic:#7ea83a;
+    --toxic-bright:#a6e050;
+    --bone:#d9d3bd;
+    --ash:#6f7360;
+  }
+  *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important;}
+  }
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1a1c11 0%, var(--void) 60%);
+    color:var(--bone);
+    font-family:'JetBrains Mono', monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+    background:repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0.0) 0px, rgba(0,0,0,0.0) 2px,
+      rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.0) 4px
+    );
+    mix-blend-mode:multiply;
+    opacity:0.6;
+  }
+  .app{
+    max-width:760px; margin:0 auto; padding:28px 16px 60px;
+    position:relative; z-index:1;
+  }
+  header{
+    border-bottom:2px solid var(--edge);
+    padding-bottom:14px; margin-bottom:20px;
+  }
+  header .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:0.18em; color:var(--ash);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  header .eyebrow .status{color:var(--toxic-bright);}
+  h1{
+    font-family:'Oswald', sans-serif; font-weight:700;
+    font-size:clamp(28px, 6vw, 40px);
+    letter-spacing:0.03em; text-transform:uppercase;
+    margin:8px 0 4px; color:var(--bone);
+    text-shadow: 0 0 14px rgba(166,224,80,0.08);
+  }
+  header p.sub{
+    margin:0; color:var(--ash); font-size:13px; letter-spacing:0.02em;
+  }
+
+  /* CRT READOUT — signature element */
+  .readout{
+    position:relative;
+    border:2px solid var(--edge);
+    background:
+      linear-gradient(180deg, #0f110a 0%, #0a0b06 100%);
+    border-radius:2px;
+    padding:26px 20px;
+    margin:22px 0 24px;
+    min-height:132px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(126,168,58,0.05);
+    overflow:hidden;
+  }
+  .readout::before{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(to bottom, rgba(126,168,58,0.03) 0px, transparent 2px, transparent 4px);
+    pointer-events:none;
+  }
+  .readout .r-idle{ color:var(--ash); font-size:13px; letter-spacing:0.1em;}
+  .readout .r-detail{ font-size:13px; color:var(--ash); margin-bottom:6px; letter-spacing:0.05em;}
+  .readout .r-value{
+    font-family:'Oswald', sans-serif; font-weight:700;
+    font-size:clamp(30px, 8vw, 54px); line-height:1; margin-bottom:8px;
+  }
+  .readout .r-label{
+    font-family:'Oswald', sans-serif; font-weight:600;
+    font-size:clamp(16px, 4vw, 22px); letter-spacing:0.08em; text-transform:uppercase;
+  }
+  .tier-crit .r-value, .tier-crit .r-label{ color:var(--toxic-bright); text-shadow:0 0 18px rgba(166,224,80,0.55);}
+  .tier-success .r-value{ color:var(--toxic-bright); }
+  .tier-success .r-label{ color:var(--toxic); }
+  .tier-fail .r-value, .tier-fail .r-label{ color:var(--warn); }
+  .tier-fumble .r-value, .tier-fumble .r-label{ color:var(--blood-bright); text-shadow:0 0 18px rgba(255,74,74,0.6);}
+
+  @keyframes flicker{
+    0%{opacity:1;} 8%{opacity:0.4;} 10%{opacity:1;} 40%{opacity:0.85;} 42%{opacity:1;} 100%{opacity:1;}
+  }
+  .flash .r-value, .flash .r-label{ animation:flicker 0.5s steps(2,end); }
+  @keyframes shake{
+    0%,100%{transform:translateX(0);} 20%{transform:translateX(-3px);} 40%{transform:translateX(3px);}
+    60%{transform:translateX(-2px);} 80%{transform:translateX(2px);}
+  }
+  .tier-fumble.flash{ animation:shake 0.4s linear; }
+
+  /* TABS */
+  .tabs{ display:flex; gap:2px; margin-bottom:0; }
+  .tab-btn{
+    flex:1; background:var(--panel); color:var(--ash);
+    border:2px solid var(--edge); border-bottom:none;
+    font-family:'Oswald', sans-serif; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.05em; font-size:13px;
+    padding:10px 6px; cursor:pointer;
+  }
+  .tab-btn.active{ background:var(--panel2); color:var(--bone); border-color:var(--toxic);}
+  .panel{
+    display:none; background:var(--panel2); border:2px solid var(--edge);
+    padding:18px; margin-bottom:22px;
+  }
+  .panel.active{ display:block; }
+  .dice-templates{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .die-btn{
+    background:var(--panel); border:1px solid var(--edge); color:var(--bone);
+    font-family:'JetBrains Mono', monospace; font-weight:500; font-size:13px;
+    padding:8px 12px; cursor:pointer; border-radius:1px; min-width:56px;
+  }
+  .die-btn:hover{ border-color:var(--toxic); color:var(--toxic-bright); }
+  .die-btn.active-die{ border-color:var(--toxic); color:var(--toxic-bright); background:var(--panel2); }
+
+  /* ROOM */
+  .room{
+    background:var(--panel2); border:2px solid var(--edge);
+    padding:14px 16px; margin-bottom:22px;
+  }
+  .room-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .room-row input{
+    flex:1; background:var(--void); border:1px solid var(--edge); color:var(--bone);
+    font-family:'JetBrains Mono', monospace; font-size:14px; padding:8px 10px; border-radius:1px; min-width:0;
+  }
+  .room-row input:focus{ outline:none; border-color:var(--toxic); }
+  .room-btn{
+    background:var(--panel); border:1px solid var(--toxic); color:var(--toxic-bright);
+    font-family:'Oswald', sans-serif; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.04em; font-size:12px; padding:8px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .room-btn:hover{ background:var(--panel2); }
+  .room-btn.leave{ border-color:var(--blood); color:var(--blood-bright); }
+  .room-status{
+    font-size:12px; letter-spacing:0.04em; color:var(--ash); display:flex; align-items:center; gap:6px;
+  }
+  .room-status .dot{ width:8px; height:8px; border-radius:50%; background:var(--ash); display:inline-block; }
+  .room-status.connected .dot{ background:var(--toxic-bright); box-shadow:0 0 6px var(--toxic-bright); }
+  .room-status.connected{ color:var(--toxic-bright); }
+  .room-code-display{
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:20px; letter-spacing:0.1em;
+    color:var(--toxic-bright); margin:6px 0; word-break:break-all;
+  }
+  .room-hint{ font-size:11px; color:var(--ash); margin-top:4px; }
+  .room-error{ color:var(--blood-bright); font-size:12px; margin-top:6px; display:none; }
+  .log-body .p{ color:var(--toxic-bright); font-weight:600; margin-right:4px; }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block; font-size:11px; letter-spacing:0.08em; color:var(--ash);
+    margin-bottom:5px; text-transform:uppercase;
+  }
+  .field input{
+    width:100%; background:var(--void); border:1px solid var(--edge); color:var(--bone);
+    font-family:'JetBrains Mono', monospace; font-size:15px; padding:9px 10px; border-radius:1px;
+  }
+  .field input:focus{ outline:none; border-color:var(--toxic); }
+  .row{ display:flex; gap:12px; }
+  .row .field{ flex:1; }
+  .hint{ font-size:11px; color:var(--ash); margin-top:-8px; margin-bottom:14px; }
+  button.roll-btn{
+    width:100%; background:var(--blood); color:#fff; border:none;
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:16px;
+    letter-spacing:0.08em; text-transform:uppercase; padding:13px; cursor:pointer;
+    border:2px solid #6e1518;
+  }
+  button.roll-btn:hover{ background:var(--blood-bright); }
+  button.roll-btn:active{ transform:translateY(1px); }
+  .error-msg{ color:var(--blood-bright); font-size:12px; margin-top:8px; display:none; }
+
+  /* LOG */
+  .log-head{
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid var(--edge); padding-bottom:6px; margin-bottom:8px;
+  }
+  .log-head h2{
+    font-family:'Oswald', sans-serif; font-size:14px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--ash); margin:0;
+  }
+  .log-head button{
+    background:none; border:1px solid var(--edge); color:var(--ash);
+    font-size:11px; padding:4px 8px; cursor:pointer; letter-spacing:0.05em;
+  }
+  .log-head button:hover{ color:var(--bone); border-color:var(--ash); }
+  .log-body{
+    max-height:260px; overflow-y:auto; font-size:12.5px; line-height:1.7;
+    background:var(--panel); border:1px solid var(--edge); padding:10px 12px;
+  }
+  .log-body .entry{ border-bottom:1px dashed rgba(255,255,255,0.05); padding:4px 0; }
+  .log-body .entry:last-child{ border-bottom:none; }
+  .log-body .t{ color:var(--ash); margin-right:8px; }
+  .log-empty{ color:var(--ash); font-style:italic; }
+
+  footer{ text-align:center; color:var(--ash); font-size:11px; margin-top:26px; letter-spacing:0.05em; }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="app">
+
+  <header>
+    <div class="eyebrow">
+      <span>UNIT-07 // 判定支援端末</span>
+      <span class="status">● 稼働中</span>
+    </div>
+    <h1>MASCHINENREICH<br>WÜRFELTERMINAL</h1>
+    <p class="sub">現在、判定結果へのご指摘は受け付けておりません。</p>
+  </header>
+
+  <div class="room">
+    <div class="room-status" id="roomStatus"><span class="dot"></span><span id="roomStatusText">オフライン(ローカルのみ)</span></div>
+
+    <div id="roomFormArea">
+      <div class="room-row">
+        <input type="text" id="playerName" placeholder="プレイヤー名(未入力なら「名無し」)" maxlength="20">
+      </div>
+      <div class="room-row">
+        <input type="text" id="roomCodeInput" placeholder="ルームコードを入力して参加">
+        <button class="room-btn" id="btnJoinRoom">参加</button>
+      </div>
+      <div class="room-row">
+        <button class="room-btn" id="btnCreateRoom" style="flex:1;">新規ルームを作成</button>
+      </div>
+      <div class="room-hint">回線は暗号化されていない。合言葉に機密情報を含めるな。</div>
+      <div class="room-error" id="roomError"></div>
+    </div>
+
+    <div id="roomActiveArea" style="display:none;">
+      <div class="room-hint">合言葉(他のプレイヤーに伝える):</div>
+      <div class="room-code-display" id="roomCodeDisplay"></div>
+      <button class="room-btn leave" id="btnLeaveRoom">ルームを退出</button>
+    </div>
+  </div>
+
+  <div class="readout" id="readout"></div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="normal">通常ロール</button>
+    <button class="tab-btn" data-tab="skill">技能判定</button>
+  </nav>
+
+  <section class="panel active" id="panel-normal">
+    <div class="dice-templates" id="diceTemplates">
+      <button type="button" class="die-btn" data-sides="4">1D4</button>
+      <button type="button" class="die-btn" data-sides="6">1D6</button>
+      <button type="button" class="die-btn" data-sides="8">1D8</button>
+      <button type="button" class="die-btn" data-sides="10">1D10</button>
+      <button type="button" class="die-btn" data-sides="12">1D12</button>
+      <button type="button" class="die-btn" data-sides="20">1D20</button>
+      <button type="button" class="die-btn" data-sides="100">1D100</button>
+    </div>
+    <div class="hint">同じダイスを連続タップすると数が増える(2D, 3D...)</div>
+    <div class="field">
+      <label>ダイス式(例: 2d6+3, 1d10-1)</label>
+      <input type="text" id="normalExpr" placeholder="2d6+3" value="2d6">
+    </div>
+    <button class="roll-btn" id="btnNormal">投擲実行</button>
+    <div class="error-msg" id="errNormal">入力形式が破損しています。復旧不可。</div>
+  </section>
+
+  <section class="panel" id="panel-skill">
+    <div class="row">
+      <div class="field">
+        <label>目標値</label>
+        <input type="number" id="skillTarget" min="1" max="99" value="60">
+      </div>
+      <div class="field">
+        <label>ボーナスダイス</label>
+        <input type="number" id="skillBonus" min="0" max="9" value="0">
+      </div>
+      <div class="field">
+        <label>ペナルティダイス</label>
+        <input type="number" id="skillPenalty" min="0" max="9" value="0">
+      </div>
+    </div>
+    <div class="hint">d100判定。ボーナス/ペナルティは相殺後の分だけ十の位を振り直す。</div>
+    <button class="roll-btn" id="btnSkill">判定を強制実行</button>
+    <div class="error-msg" id="errSkill">目標値が破損しています。1以上を入力しろ。</div>
+  </section>
+
+  <div class="log-head">
+    <h2 id="logTitle">行動記録</h2>
+    <button id="btnClearLog">記録を破棄</button>
+  </div>
+  <div class="log-body" id="logBody">
+    <div class="log-empty">記録なし</div>
+  </div>
+
+  <footer>M.R.端末 v0.7β — 誤判定による損害を端末は保証しない</footer>
+</div>
+
+<script>
+(function(){
+  const readout = document.getElementById('readout');
+  const logBody = document.getElementById('logBody');
+  let logs = [];
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---------- room (multiplayer) ----------
+  const JB_BASE = 'https://jsonblob.com/api/jsonBlob';
+  let roomCode = null;
+  let playerName = '';
+  let pollTimer = null;
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, ch => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[ch]));
+  }
+
+  const roomStatusEl = document.getElementById('roomStatus');
+  const roomStatusTextEl = document.getElementById('roomStatusText');
+  const roomFormArea = document.getElementById('roomFormArea');
+  const roomActiveArea = document.getElementById('roomActiveArea');
+  const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+  const roomErrorEl = document.getElementById('roomError');
+  const logTitleEl = document.getElementById('logTitle');
+
+  function showRoomError(msg){
+    roomErrorEl.textContent = msg;
+    roomErrorEl.style.display = 'block';
+  }
+  function clearRoomError(){
+    roomErrorEl.style.display = 'none';
+  }
+
+  function enterRoomUI(){
+    roomStatusEl.classList.add('connected');
+    roomStatusTextEl.textContent = 'ルーム接続中: ' + playerName;
+    roomFormArea.style.display = 'none';
+    roomActiveArea.style.display = 'block';
+    roomCodeDisplay.textContent = roomCode;
+    logTitleEl.textContent = '共有ログ(ルーム)';
+    logBody.innerHTML = '<div class="log-empty">同期中...</div>';
+  }
+  function exitRoomUI(){
+    roomStatusEl.classList.remove('connected');
+    roomStatusTextEl.textContent = 'オフライン(ローカルのみ)';
+    roomFormArea.style.display = 'block';
+    roomActiveArea.style.display = 'none';
+    logTitleEl.textContent = '行動記録';
+    renderLog();
+  }
+
+  async function createRoom(){
+    clearRoomError();
+    playerName = document.getElementById('playerName').value.trim() || '名無し';
+    document.getElementById('btnCreateRoom').disabled = true;
+    try{
+      const res = await fetch(JB_BASE, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify([])
+      });
+      if(!res.ok) throw new Error('HTTPステータス ' + res.status);
+      const loc = res.headers.get('Location');
+      if(!loc) throw new Error('ルームIDを取得できませんでした(応答ヘッダーが読めません)');
+      const id = loc.split('/').pop();
+      roomCode = id;
+      enterRoomUI();
+      startPolling();
+    }catch(e){
+      showRoomError('ルームの作成に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。通信環境を確認してください。');
+    }finally{
+      document.getElementById('btnCreateRoom').disabled = false;
+    }
+  }
+
+  async function joinRoom(){
+    clearRoomError();
+    const code = document.getElementById('roomCodeInput').value.trim();
+    if(!code){ showRoomError('ルームコードを入力してください。'); return; }
+    playerName = document.getElementById('playerName').value.trim() || '名無し';
+    document.getElementById('btnJoinRoom').disabled = true;
+    try{
+      const res = await fetch(JB_BASE + '/' + code);
+      if(!res.ok) throw new Error('HTTPステータス ' + res.status);
+      roomCode = code;
+      enterRoomUI();
+      startPolling();
+    }catch(e){
+      showRoomError('ルームが見つかりません(' + (e && e.message ? e.message : '不明なエラー') + ')。コードを確認してください。');
+    }finally{
+      document.getElementById('btnJoinRoom').disabled = false;
+    }
+  }
+
+  function leaveRoom(){
+    roomCode = null;
+    stopPolling();
+    exitRoomUI();
+  }
+
+  async function pushEntry(text){
+    if(!roomCode) return;
+    try{
+      const res = await fetch(JB_BASE + '/' + roomCode);
+      let arr = [];
+      if(res.ok){ try{ arr = await res.json(); }catch(e){ arr = []; } if(!Array.isArray(arr)) arr = []; }
+      arr.unshift({t: timeNow(), player: playerName, text});
+      if(arr.length > 50) arr = arr.slice(0, 50);
+      await fetch(JB_BASE + '/' + roomCode, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify(arr)
+      });
+      renderRoomLog(arr);
+    }catch(e){ /* 通信失敗は無視して次のポーリングに任せる */ }
+  }
+
+  async function pollRoom(){
+    if(!roomCode) return;
+    try{
+      const res = await fetch(JB_BASE + '/' + roomCode);
+      if(res.ok){
+        let arr = [];
+        try{ arr = await res.json(); }catch(e){ arr = []; }
+        renderRoomLog(Array.isArray(arr) ? arr : []);
+      }
+    }catch(e){ /* 通信失敗は無視 */ }
+  }
+
+  function startPolling(){
+    pollRoom();
+    pollTimer = setInterval(pollRoom, 4000);
+  }
+  function stopPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function renderRoomLog(arr){
+    if(!arr || arr.length === 0){
+      logBody.innerHTML = '<div class="log-empty">記録なし</div>';
+      return;
+    }
+    logBody.innerHTML = arr.map(l=>
+      '<div class="entry"><span class="t">'+escapeHtml(l.t)+'</span><span class="p">['+escapeHtml(l.player)+']</span>'+escapeHtml(l.text)+'</div>'
+    ).join('');
+  }
+
+  document.getElementById('btnCreateRoom').addEventListener('click', createRoom);
+  document.getElementById('btnJoinRoom').addEventListener('click', joinRoom);
+  document.getElementById('btnLeaveRoom').addEventListener('click', leaveRoom);
+
+  // ---------- dice template buttons ----------
+  let lastDieSides = null;
+  let lastDieCount = 0;
+  const normalExprInput = document.getElementById('normalExpr');
+  document.querySelectorAll('.die-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const sides = parseInt(btn.dataset.sides, 10);
+      if(lastDieSides === sides){ lastDieCount++; }
+      else { lastDieSides = sides; lastDieCount = 1; }
+      normalExprInput.value = lastDieCount + 'd' + sides;
+      document.querySelectorAll('.die-btn').forEach(b=>b.classList.remove('active-die'));
+      btn.classList.add('active-die');
+    });
+  });
+  normalExprInput.addEventListener('input', ()=>{
+    lastDieSides = null; lastDieCount = 0;
+    document.querySelectorAll('.die-btn').forEach(b=>b.classList.remove('active-die'));
+  });
+
+  // ---------- dice expr parser ----------
+  function rollExpr(expr){
+    const cleaned = expr.replace(/\s+/g,'');
+    const m = cleaned.match(/^(\d+)d(\d+)([+\-]\d+)?$/i);
+    if(!m) return null;
+    const count = parseInt(m[1],10);
+    const sides = parseInt(m[2],10);
+    const mod = m[3] ? parseInt(m[3],10) : 0;
+    if(count < 1 || count > 100 || sides < 2 || sides > 1000) return null;
+    const rolls = [];
+    for(let i=0;i<count;i++){ rolls.push(1 + Math.floor(Math.random()*sides)); }
+    const total = rolls.reduce((a,b)=>a+b,0) + mod;
+    return {rolls, mod, total, expr: cleaned};
+  }
+
+  // ---------- percentile with bonus/penalty ----------
+  function rollPercentile(bonus, penalty){
+    const net = bonus - penalty;
+    const units = Math.floor(Math.random()*10);
+    const tensCount = 1 + Math.abs(net);
+    const tensRolls = [];
+    for(let i=0;i<tensCount;i++){ tensRolls.push(Math.floor(Math.random()*10)); }
+    let tens;
+    if(net > 0) tens = Math.min(...tensRolls);
+    else if(net < 0) tens = Math.max(...tensRolls);
+    else tens = tensRolls[0];
+    let result = tens*10 + units;
+    if(result === 0) result = 100;
+    return {result, tensRolls, units, net};
+  }
+
+  // ---------- judgement ----------
+  function judge(roll, target){
+    if(roll === 100) return {label:'ファンブル', tier:'fumble'};
+    if(roll <= target && roll <= 5) return {label:'クリティカル', tier:'crit'};
+    if(roll <= target/5) return {label:'レベル5成功', tier:'success'};
+    if(roll <= target/4) return {label:'レベル4成功', tier:'success'};
+    if(roll <= target/3) return {label:'レベル3成功', tier:'success'};
+    if(roll <= target/2) return {label:'レベル2成功', tier:'success'};
+    if(roll <= target) return {label:'レベル1成功', tier:'success'};
+    if(roll >= 96 && roll <= 99) return {label:'ファンブル', tier:'fumble'};
+    if(roll >= target*2) return {label:'レベル2失敗', tier:'fail'};
+    return {label:'レベル1失敗', tier:'fail'};
+  }
+
+  // ---------- readout rendering ----------
+  function showReadout(detailHtml, valueText, labelText, tier){
+    readout.className = 'readout tier-' + tier;
+    readout.innerHTML =
+      '<div class="r-detail">'+detailHtml+'</div>' +
+      '<div class="r-value">'+valueText+'</div>' +
+      '<div class="r-label">'+labelText+'</div>';
+    void readout.offsetWidth;
+    readout.classList.add('flash');
+    setTimeout(()=>readout.classList.remove('flash'), 500);
+  }
+
+  function timeNow(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+  }
+
+  function addLog(text){
+    logs.unshift({t:timeNow(), text});
+    if(logs.length > 50) logs.pop();
+    renderLog();
+  }
+
+  function renderLog(){
+    if(logs.length === 0){
+      logBody.innerHTML = '<div class="log-empty">記録なし</div>';
+      return;
+    }
+    logBody.innerHTML = logs.map(l=>
+      '<div class="entry"><span class="t">'+escapeHtml(l.t)+'</span>'+escapeHtml(l.text)+'</div>'
+    ).join('');
+  }
+
+  document.getElementById('btnClearLog').addEventListener('click', async ()=>{
+    if(roomCode){
+      try{
+        await fetch(JB_BASE + '/' + roomCode, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          body: JSON.stringify([])
+        });
+        renderRoomLog([]);
+      }catch(e){ /* 通信失敗は無視 */ }
+    } else {
+      logs = [];
+      renderLog();
+    }
+  });
+
+  // ---------- normal roll (shared) ----------
+  function performNormalRoll(){
+    const exprInput = document.getElementById('normalExpr');
+    const err = document.getElementById('errNormal');
+    const res = rollExpr(exprInput.value);
+    if(!res){ err.style.display='block'; return; }
+    err.style.display='none';
+    const detail = res.expr + (res.rolls.length>1 ? ' [' + res.rolls.join(', ') + ']' + (res.mod? (res.mod>0?'+':'')+res.mod:'') : '');
+    showReadout(detail, res.total, '通常ロール', 'success');
+    const entryText = res.expr + ' → ' + res.total + ' [' + res.rolls.join(',') + ']';
+    if(roomCode){ pushEntry(entryText); } else { addLog(entryText); }
+  }
+  document.getElementById('btnNormal').addEventListener('click', performNormalRoll);
+
+  // ---------- skill check ----------
+  document.getElementById('btnSkill').addEventListener('click', ()=>{
+    const targetInput = document.getElementById('skillTarget');
+    const bonusInput = document.getElementById('skillBonus');
+    const penaltyInput = document.getElementById('skillPenalty');
+    const err = document.getElementById('errSkill');
+    const target = parseInt(targetInput.value, 10);
+    const bonus = Math.max(0, parseInt(bonusInput.value,10) || 0);
+    const penalty = Math.max(0, parseInt(penaltyInput.value,10) || 0);
+    if(!target || target < 1){ err.style.display='block'; return; }
+    err.style.display='none';
+
+    const {result, net} = rollPercentile(bonus, penalty);
+    const j = judge(result, target);
+    const netLabel = net === 0 ? '補正なし' : (net > 0 ? 'ボーナス+'+net : 'ペナルティ'+Math.abs(net));
+    const detail = 'd100 ≤ ' + target + ' (' + netLabel + ')';
+    showReadout(detail, result, j.label, j.tier);
+    const entryText = '技能判定 目標'+target+' ('+netLabel+') → '+result+' 【'+j.label+'】';
+    if(roomCode){ pushEntry(entryText); } else { addLog(entryText); }
+  });
+
+})();
+</script>
+</body>
+</html>
