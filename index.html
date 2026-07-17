@@ -238,13 +238,16 @@
         <input type="text" id="playerName" placeholder="プレイヤー名(未入力なら「名無し」)" maxlength="20">
       </div>
       <div class="room-row">
-        <input type="text" id="roomCodeInput" placeholder="ルームコードを入力して参加">
+        <input type="text" id="roomCodeInput" placeholder="ルームコード(新規作成時は空欄でも可)">
         <button class="room-btn" id="btnJoinRoom">参加</button>
+      </div>
+      <div class="room-row">
+        <input type="password" id="githubToken" placeholder="GitHubトークン(書き込みする場合のみ・空欄なら閲覧専用)">
       </div>
       <div class="room-row">
         <button class="room-btn" id="btnCreateRoom" style="flex:1;">新規ルームを作成</button>
       </div>
-      <div class="room-hint">回線は暗号化されていない。合言葉に機密情報を含めるな。</div>
+      <div class="room-hint">トークンはこの端末内でのみ使用し、どこにも保存・送信(ダイス通信先以外)されません。閲覧のみで参加する場合はトークン欄を空欄のままにしてください。</div>
       <div class="room-error" id="roomError"></div>
     </div>
 
@@ -328,16 +331,30 @@
     });
   });
 
-  // ---------- room (multiplayer) ----------
-  const JB_BASE = 'https://jsonblob.com/api/jsonBlob';
+  // ---------- room (multiplayer, backed by GitHub Contents API) ----------
+  const GH_OWNER = 'nasunoagebitasi2929-a11y';
+  const GH_REPO = 'machinereich-dice';
+  const GH_API = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/rooms/';
+  const GH_RAW = 'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/main/rooms/';
   let roomCode = null;
   let playerName = '';
+  let ghToken = '';
   let pollTimer = null;
 
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, ch => ({
       '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
     }[ch]));
+  }
+
+  // UTF-8 safe base64 helpers (GitHub Contents API requires base64-encoded content)
+  function b64EncodeUtf8(str){
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+      (match, p1) => String.fromCharCode('0x' + p1)));
+  }
+  function b64DecodeUtf8(str){
+    return decodeURIComponent(atob(str).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
   const roomStatusEl = document.getElementById('roomStatus');
@@ -358,7 +375,7 @@
 
   function enterRoomUI(){
     roomStatusEl.classList.add('connected');
-    roomStatusTextEl.textContent = 'ルーム接続中: ' + playerName;
+    roomStatusTextEl.textContent = 'ルーム接続中: ' + playerName + (ghToken ? '' : '(閲覧のみ)');
     roomFormArea.style.display = 'none';
     roomActiveArea.style.display = 'block';
     roomCodeDisplay.textContent = roomCode;
@@ -374,25 +391,66 @@
     renderLog();
   }
 
+  async function ghGetFile(code){
+    // 読み取りは認証不要(公開リポジトリのraw経由、キャッシュ回避のためタイムスタンプ付与)
+    const res = await fetch(GH_RAW + code + '.json?t=' + Date.now());
+    if(res.status === 404) return {exists:false, arr:[]};
+    if(!res.ok) throw new Error('HTTPステータス ' + res.status);
+    let arr = [];
+    try{ arr = await res.json(); }catch(e){ arr = []; }
+    return {exists:true, arr: Array.isArray(arr) ? arr : []};
+  }
+
+  async function ghPutFile(code, arr){
+    // 書き込みはトークン必須。まず現在のshaを取得(存在すれば)してから更新/作成する
+    if(!ghToken) throw new Error('書き込み用トークンが設定されていません');
+    let sha = null;
+    const getRes = await fetch(GH_API + code + '.json', {
+      headers: { 'Authorization': 'Bearer ' + ghToken, 'Accept': 'application/vnd.github+json' }
+    });
+    if(getRes.status === 200){
+      const info = await getRes.json();
+      sha = info.sha;
+    } else if(getRes.status !== 404){
+      throw new Error('HTTPステータス ' + getRes.status);
+    }
+    const body = {
+      message: 'update room ' + code,
+      content: b64EncodeUtf8(JSON.stringify(arr, null, 0))
+    };
+    if(sha) body.sha = sha;
+    const putRes = await fetch(GH_API + code + '.json', {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + ghToken,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'text/plain'
+      },
+      body: JSON.stringify(body)
+    });
+    if(!putRes.ok){
+      const errText = await putRes.text().catch(()=> '');
+      throw new Error('HTTPステータス ' + putRes.status + (errText ? ' ' + errText.slice(0,80) : ''));
+    }
+  }
+
   async function createRoom(){
     clearRoomError();
     playerName = document.getElementById('playerName').value.trim() || '名無し';
+    ghToken = document.getElementById('githubToken').value.trim();
+    let code = document.getElementById('roomCodeInput').value.trim();
+    if(!code){ code = Math.random().toString(36).slice(2, 8); }
+    if(!ghToken){ showRoomError('新規ルームの作成にはGitHubトークン(書き込み用)が必要です。'); return; }
     document.getElementById('btnCreateRoom').disabled = true;
     try{
-      const res = await fetch(JB_BASE, {
-        method: 'POST',
-        headers: {'Content-Type': 'text/plain'},
-        body: JSON.stringify([])
-      });
-      if(!res.ok) throw new Error('HTTPステータス ' + res.status);
-      const loc = res.headers.get('Location');
-      if(!loc) throw new Error('ルームIDを取得できませんでした(応答ヘッダーが読めません)');
-      const id = loc.split('/').pop();
-      roomCode = id;
+      const check = await ghGetFile(code);
+      if(check.exists){ throw new Error('そのルームコードは既に使われています。別のコードを試してください。'); }
+      await ghPutFile(code, []);
+      roomCode = code;
       enterRoomUI();
       startPolling();
     }catch(e){
-      showRoomError('ルームの作成に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。通信環境を確認してください。');
+      showRoomError('ルームの作成に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。');
     }finally{
       document.getElementById('btnCreateRoom').disabled = false;
     }
@@ -403,15 +461,16 @@
     const code = document.getElementById('roomCodeInput').value.trim();
     if(!code){ showRoomError('ルームコードを入力してください。'); return; }
     playerName = document.getElementById('playerName').value.trim() || '名無し';
+    ghToken = document.getElementById('githubToken').value.trim();
     document.getElementById('btnJoinRoom').disabled = true;
     try{
-      const res = await fetch(JB_BASE + '/' + code);
-      if(!res.ok) throw new Error('HTTPステータス ' + res.status);
+      const check = await ghGetFile(code);
+      if(!check.exists){ throw new Error('ルームが見つかりません'); }
       roomCode = code;
       enterRoomUI();
       startPolling();
     }catch(e){
-      showRoomError('ルームが見つかりません(' + (e && e.message ? e.message : '不明なエラー') + ')。コードを確認してください。');
+      showRoomError('ルームに参加できませんでした(' + (e && e.message ? e.message : '不明なエラー') + ')。コードを確認してください。');
     }finally{
       document.getElementById('btnJoinRoom').disabled = false;
     }
@@ -419,36 +478,31 @@
 
   function leaveRoom(){
     roomCode = null;
+    ghToken = '';
     stopPolling();
     exitRoomUI();
   }
 
   async function pushEntry(text){
     if(!roomCode) return;
+    if(!ghToken){ addLog(text + '(閲覧のみのため未送信)'); return; }
     try{
-      const res = await fetch(JB_BASE + '/' + roomCode);
-      let arr = [];
-      if(res.ok){ try{ arr = await res.json(); }catch(e){ arr = []; } if(!Array.isArray(arr)) arr = []; }
+      const cur = await ghGetFile(roomCode);
+      const arr = cur.arr;
       arr.unshift({t: timeNow(), player: playerName, text});
-      if(arr.length > 50) arr = arr.slice(0, 50);
-      await fetch(JB_BASE + '/' + roomCode, {
-        method: 'PUT',
-        headers: {'Content-Type': 'text/plain'},
-        body: JSON.stringify(arr)
-      });
+      if(arr.length > 50) arr.length = 50;
+      await ghPutFile(roomCode, arr);
       renderRoomLog(arr);
-    }catch(e){ /* 通信失敗は無視して次のポーリングに任せる */ }
+    }catch(e){
+      showRoomError('送信に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。');
+    }
   }
 
   async function pollRoom(){
     if(!roomCode) return;
     try{
-      const res = await fetch(JB_BASE + '/' + roomCode);
-      if(res.ok){
-        let arr = [];
-        try{ arr = await res.json(); }catch(e){ arr = []; }
-        renderRoomLog(Array.isArray(arr) ? arr : []);
-      }
+      const cur = await ghGetFile(roomCode);
+      renderRoomLog(cur.arr);
     }catch(e){ /* 通信失敗は無視 */ }
   }
 
@@ -575,13 +629,11 @@
   document.getElementById('btnClearLog').addEventListener('click', async ()=>{
     if(roomCode){
       try{
-        await fetch(JB_BASE + '/' + roomCode, {
-          method: 'PUT',
-          headers: {'Content-Type': 'text/plain'},
-          body: JSON.stringify([])
-        });
+        await ghPutFile(roomCode, []);
         renderRoomLog([]);
-      }catch(e){ /* 通信失敗は無視 */ }
+      }catch(e){
+        showRoomError('削除に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。');
+      }
     } else {
       logs = [];
       renderLog();
@@ -627,4 +679,3 @@
 </script>
 </body>
 </html>
-  
