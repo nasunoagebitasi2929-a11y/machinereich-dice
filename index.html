@@ -242,18 +242,20 @@
         <button class="room-btn" id="btnJoinRoom">参加</button>
       </div>
       <div class="room-row">
-        <input type="password" id="githubToken" placeholder="GitHubトークン(書き込みする場合のみ・空欄なら閲覧専用)">
+        <input type="password" id="githubToken" placeholder="GitHubトークン(新規作成時のみ必要・招待リンクから来た場合は不要)">
       </div>
       <div class="room-row">
         <button class="room-btn" id="btnCreateRoom" style="flex:1;">新規ルームを作成</button>
       </div>
-      <div class="room-hint">トークンはこの端末内でのみ使用し、どこにも保存・送信(ダイス通信先以外)されません。閲覧のみで参加する場合はトークン欄を空欄のままにしてください。</div>
+      <div class="room-hint">招待リンクを受け取った場合は、上のトークン欄は空欄のままで大丈夫です。合言葉(ルームコード)に機密情報を含めないでください。</div>
       <div class="room-error" id="roomError"></div>
     </div>
 
     <div id="roomActiveArea" style="display:none;">
-      <div class="room-hint">合言葉(他のプレイヤーに伝える):</div>
+      <div class="room-hint">合言葉(ルームコード):</div>
       <div class="room-code-display" id="roomCodeDisplay"></div>
+      <div class="room-hint" id="inviteLinkHint" style="display:none;">招待リンク(これを他のプレイヤーに送ると、トークン入力なしで書き込み参加できます):</div>
+      <div class="room-code-display" id="inviteLinkDisplay" style="font-size:12px; display:none;"></div>
       <button class="room-btn leave" id="btnLeaveRoom">ルームを退出</button>
     </div>
   </div>
@@ -364,6 +366,8 @@
   const roomCodeDisplay = document.getElementById('roomCodeDisplay');
   const roomErrorEl = document.getElementById('roomError');
   const logTitleEl = document.getElementById('logTitle');
+  const inviteLinkHint = document.getElementById('inviteLinkHint');
+  const inviteLinkDisplay = document.getElementById('inviteLinkDisplay');
 
   function showRoomError(msg){
     roomErrorEl.textContent = msg;
@@ -379,6 +383,15 @@
     roomFormArea.style.display = 'none';
     roomActiveArea.style.display = 'block';
     roomCodeDisplay.textContent = roomCode;
+    if(ghToken){
+      const link = location.origin + location.pathname + '?room=' + encodeURIComponent(roomCode) + '&token=' + encodeURIComponent(ghToken);
+      inviteLinkDisplay.textContent = link;
+      inviteLinkHint.style.display = 'block';
+      inviteLinkDisplay.style.display = 'block';
+    } else {
+      inviteLinkHint.style.display = 'none';
+      inviteLinkDisplay.style.display = 'none';
+    }
     logTitleEl.textContent = '共有ログ(ルーム)';
     logBody.innerHTML = '<div class="log-empty">同期中...</div>';
   }
@@ -402,8 +415,7 @@
   }
 
   async function ghPutFile(code, arr){
-    // 書き込みはトークン必須。まず現在のshaを取得(存在すれば)してから更新/作成する
-    if(!ghToken) throw new Error('書き込み用トークンが設定されていません');
+    // 書き込みは埋め込みトークンを使用
     let sha = null;
     const getRes = await fetch(GH_API + code + '.json', {
       headers: { 'Authorization': 'Bearer ' + ghToken, 'Accept': 'application/vnd.github+json' }
@@ -440,7 +452,7 @@
     ghToken = document.getElementById('githubToken').value.trim();
     let code = document.getElementById('roomCodeInput').value.trim();
     if(!code){ code = Math.random().toString(36).slice(2, 8); }
-    if(!ghToken){ showRoomError('新規ルームの作成にはGitHubトークン(書き込み用)が必要です。'); return; }
+    if(!ghToken){ showRoomError('新規ルームの作成にはGitHubトークンが必要です。'); return; }
     document.getElementById('btnCreateRoom').disabled = true;
     try{
       const check = await ghGetFile(code);
@@ -528,6 +540,20 @@
   document.getElementById('btnCreateRoom').addEventListener('click', createRoom);
   document.getElementById('btnJoinRoom').addEventListener('click', joinRoom);
   document.getElementById('btnLeaveRoom').addEventListener('click', leaveRoom);
+
+  // ---------- 招待リンク(?room=...&token=...)からの自動参加 ----------
+  (function(){
+    const params = new URLSearchParams(location.search);
+    const linkRoom = params.get('room');
+    const linkToken = params.get('token');
+    if(linkRoom){
+      document.getElementById('roomCodeInput').value = linkRoom;
+      if(linkToken){ document.getElementById('githubToken').value = linkToken; }
+      // URLに含まれるトークンが履歴やブックマークに残らないよう、パラメータを消してから自動参加する
+      history.replaceState(null, '', location.pathname);
+      joinRoom();
+    }
+  })();
 
   // ---------- dice template buttons ----------
   let lastDieSides = null;
