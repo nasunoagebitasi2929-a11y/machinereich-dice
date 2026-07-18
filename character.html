@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マシーネライヒTRPG 探索者登録証</title>
+<style>
+  :root{
+    --bg:#15120f;
+    --panel:#1f1a15;
+    --panel2:#241f18;
+    --ink:#e8dcc4;
+    --ink-dim:#a89a80;
+    --rust:#a1531f;
+    --rust-bright:#c96b2c;
+    --toxic:#8a9a5b;
+    --danger:#8a2e2e;
+    --danger-bright:#c24b3f;
+    --line:#3a3226;
+    --line-bright:#544a38;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Consolas','Courier New',monospace;
+    font-size:14px;
+    line-height:1.5;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+  }
+  h1,h2,h3{
+    font-family:'Arial Narrow','Hiragino Sans','Yu Gothic',sans-serif;
+    font-weight:700;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    margin:0;
+    color:var(--rust-bright);
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:18px 16px 60px;}
+
+  /* ---- header / dossier stamp ---- */
+  header{
+    position:relative;
+    border:2px solid var(--line-bright);
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    padding:18px 20px;
+    margin-bottom:18px;
+    overflow:hidden;
+  }
+  header::before{
+    content:"";
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, transparent 0 6px, rgba(255,255,255,0.02) 6px 7px);
+    pointer-events:none;
+  }
+  header .eyebrow{color:var(--toxic);font-size:11px;letter-spacing:0.25em;}
+  header h1{font-size:22px;margin-top:2px;}
+  header .sub{color:var(--ink-dim);font-size:12px;margin-top:4px;}
+  .stamp{
+    position:absolute; top:14px; right:18px;
+    border:2px solid var(--toxic);
+    color:var(--toxic);
+    padding:6px 10px;
+    font-family:'Arial Narrow',sans-serif;
+    font-weight:700;
+    letter-spacing:0.15em;
+    font-size:11px;
+    transform:rotate(-6deg);
+    opacity:0.75;
+  }
+  .toolbar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  button{
+    font-family:'Arial Narrow',sans-serif;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-size:12px;
+    font-weight:700;
+    border:1px solid var(--line-bright);
+    background:var(--panel2);
+    color:var(--ink);
+    padding:8px 14px;
+    cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  button:hover{background:var(--rust);border-color:var(--rust-bright);color:#fff;}
+  button.danger{border-color:var(--danger);color:var(--danger-bright);}
+  button.danger:hover{background:var(--danger);color:#fff;}
+  button.ghost{background:transparent;}
+  #saveStatus{color:var(--toxic);font-size:11px;align-self:center;margin-left:auto;}
+
+  .roster-list{display:flex;flex-direction:column;gap:6px;}
+  .roster-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    border:1px solid var(--line);padding:8px 10px;background:#181410;flex-wrap:wrap;
+  }
+  .roster-row.active{border-color:var(--toxic);}
+  .roster-name{color:var(--ink);font-weight:700;flex:1;min-width:140px;}
+  .roster-date{color:var(--ink-dim);font-size:11px;white-space:nowrap;}
+  .roster-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .roster-actions button{padding:4px 10px;font-size:11px;}
+
+  .confirm-overlay{
+    position:fixed;inset:0;z-index:1000;
+    background:rgba(10,8,6,0.78);
+    display:none;
+    align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .confirm-box{
+    background:var(--panel2);
+    border:2px solid var(--line-bright);
+    padding:20px;
+    max-width:380px;
+    width:100%;
+  }
+  .confirm-box .confirm-title{color:var(--rust-bright);font-size:12px;letter-spacing:0.1em;margin-bottom:10px;}
+  .confirm-message{font-size:13px;color:var(--ink);margin-bottom:18px;line-height:1.7;white-space:pre-wrap;}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:10px;}
+
+  section{
+    border:1px solid var(--line);
+    background:var(--panel);
+    margin-bottom:16px;
+  }
+  section > .sechead{
+    background:var(--panel2);
+    border-bottom:1px solid var(--line-bright);
+    padding:9px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  section > .secbody{padding:16px;}
+  .sechead h2{font-size:14px;}
+  .tag{color:var(--ink-dim);font-size:11px;letter-spacing:0.05em;text-transform:none;font-family:'Consolas',monospace;}
+
+  .grid{display:grid;gap:10px;}
+  .grid.cols2{grid-template-columns:1fr 1fr;}
+  .grid.cols3{grid-template-columns:1fr 1fr 1fr;}
+  .grid.cols4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  @media(max-width:640px){.grid.cols4{grid-template-columns:1fr 1fr;} .grid.cols3{grid-template-columns:1fr 1fr;}}
+
+  label{display:block;font-size:11px;color:var(--ink-dim);margin-bottom:3px;letter-spacing:0.04em;}
+  input[type=text],input[type=number],textarea,select{
+    width:100%;
+    background:#0f0d0a;
+    border:1px solid var(--line-bright);
+    color:var(--ink);
+    padding:7px 8px;
+    font-family:'Consolas','Courier New',monospace;
+    font-size:13px;
+  }
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--rust-bright);outline-offset:1px;}
+  textarea{resize:vertical;min-height:70px;}
+  .field{margin-bottom:2px;}
+
+  .photo-box{
+    width:120px;height:150px;
+    border:1px dashed var(--line-bright);
+    display:flex;align-items:center;justify-content:center;
+    background:#0f0d0a;
+    overflow:hidden;
+    flex-shrink:0;
+    color:var(--ink-dim);
+    font-size:11px;
+    text-align:center;
+    cursor:pointer;
+  }
+  .photo-box img{width:100%;height:100%;object-fit:cover;}
+  .basic-layout{display:flex;gap:18px;}
+  .basic-fields{flex:1;}
+
+  /* dice */
+  .dice-results{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .dice-card{
+    border:1px solid var(--line-bright);
+    padding:8px 10px;
+    min-width:90px;
+    text-align:center;
+    background:#0f0d0a;
+  }
+  .dice-card .val{font-size:20px;color:var(--rust-bright);font-weight:700;}
+  .dice-card.best{border-color:var(--toxic);}
+  .dice-card button{margin-top:6px;padding:3px 8px;font-size:10px;}
+  .pool-readout{
+    display:flex;gap:20px;align-items:baseline;margin-top:12px;flex-wrap:wrap;
+  }
+  .pool-readout .num{font-size:26px;color:var(--toxic);font-weight:700;}
+  .pool-readout .lbl{font-size:11px;color:var(--ink-dim);}
+  .note{color:var(--ink-dim);font-size:11px;margin-top:8px;line-height:1.6;}
+
+  /* abilities */
+  .ability-row{
+    border:1px solid var(--line);
+    padding:10px;
+    background:#181410;
+  }
+  .ability-row .ab-head{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-dim);margin-bottom:6px;}
+  .ability-row .ab-name{color:var(--rust-bright);font-weight:700;letter-spacing:0.05em;}
+  .remaining{font-size:11px;margin-top:4px;}
+  .remaining.neg{color:var(--danger-bright);}
+  .remaining.ok{color:var(--toxic);}
+
+  /* skills */
+  .skill-group{border:1px solid var(--line);padding:10px;background:#181410;margin-bottom:10px;}
+  .skill-group .sg-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .sg-head .ab-tag{color:var(--rust-bright);font-weight:700;font-size:12px;}
+  .skill-list{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+  @media(max-width:640px){.skill-list{grid-template-columns:1fr 1fr;}}
+  .skill-item label{font-size:10.5px;}
+
+  /* level / hp */
+  .hp-parts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;}
+  .hp-part{border:1px solid var(--line-bright);padding:10px;text-align:center;background:#0f0d0a;}
+  .hp-part .part-name{font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;}
+  .hp-part .part-val{font-size:22px;color:var(--toxic);font-weight:700;margin-top:4px;}
+  @media(max-width:640px){.hp-parts{grid-template-columns:repeat(2,1fr);}}
+
+  /* death */
+  .death-box{border:1px solid var(--danger);background:#1c1210;padding:14px;}
+  .death-count{font-size:34px;color:var(--danger-bright);font-weight:700;}
+  #deathLog{list-style:none;padding:0;margin:10px 0 0;font-size:12px;color:var(--ink-dim);max-height:140px;overflow-y:auto;border-top:1px solid var(--line);padding-top:8px;}
+  #deathLog li{padding:3px 0;border-bottom:1px dotted var(--line);}
+
+  /* inventory */
+  table{width:100%;border-collapse:collapse;}
+  table th,table td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:12px;text-align:left;}
+  table th{color:var(--ink-dim);font-weight:400;letter-spacing:0.05em;}
+  table input{padding:5px 6px;font-size:12px;}
+  .row-del{color:var(--danger-bright);cursor:pointer;background:none;border:none;font-size:16px;padding:0 6px;}
+  .currency-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;}
+  @media(max-width:640px){.currency-grid{grid-template-columns:repeat(2,1fr);}}
+
+  @media print{
+    body{background:#fff;color:#000;}
+    header::before,button,.toolbar{display:none !important;}
+    section{border-color:#999;}
+    section>.sechead{background:#eee;}
+    input,textarea{background:#fff;color:#000;border-color:#999;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">探索者協会 登録用紙 / SPECIMEN FORM</div>
+    <h1>マシーネライヒ TRPG 探索者登録証</h1>
+    <div class="sub">皇暦3259年式 標準キャラクターシート</div>
+    <div class="stamp">登録済<br>REGISTERED</div>
+    <div class="toolbar">
+      <button id="btnSave">保存</button>
+      <button id="btnPrint" class="ghost">印刷 / PDF</button>
+      <button id="btnReset" class="danger">初期化</button>
+      <a href="./index.html" style="align-self:center; color:var(--toxic); font-size:12px; letter-spacing:0.05em; margin-left:8px;">→ ダイス端末はこちら</a>
+      <span id="saveStatus"></span>
+    </div>
+  </header>
+
+  <!-- キャラクター管理 -->
+  <section>
+    <div class="sechead"><h2>キャラクター管理</h2><span class="tag">ROSTER</span></div>
+    <div class="secbody">
+      <div id="rosterList" class="roster-list"></div>
+      <button id="btnNewChar" style="margin-top:10px;">+ 新規キャラクター</button>
+      <div class="note">下の全ての入力・保存・初期化は「選択中」のキャラクターに対して行われます。複数キャラクターを作成し、ここから読込・複製・削除できます。</div>
+    </div>
+  </section>
+
+  <!-- 基本情報 -->
+  <section>
+    <div class="sechead"><h2>基本情報</h2><span class="tag">BASIC DATA</span></div>
+    <div class="secbody basic-layout">
+      <div class="photo-box" id="photoBox">写真を貼り付け<br>(クリックして選択)</div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none;">
+      <div class="basic-fields grid cols2">
+        <div class="field"><label>名前</label><input type="text" id="f_name"></div>
+        <div class="field"><label>年齢</label><input type="text" id="f_age"></div>
+        <div class="field"><label>身長</label><input type="text" id="f_height"></div>
+        <div class="field"><label>体重</label><input type="text" id="f_weight"></div>
+        <div class="field"><label>出身</label><input type="text" id="f_origin"></div>
+        <div class="field"><label>所属</label><input type="text" id="f_affiliation"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ダイス -->
+  <section>
+    <div class="sechead"><h2>能力値決定ダイス</h2><span class="tag">10D100 × 5</span></div>
+    <div class="secbody">
+      <button id="btnRollDice">10D100を5回振る</button>
+      <div class="dice-results" id="diceResults"></div>
+      <div class="pool-readout">
+        <div><span class="tag">採用値(四捨五入・下限30)</span><div class="num" id="poolFinalDisplay">-</div></div>
+        <div class="field" style="min-width:160px;">
+          <label>ポイントプール(手動調整可)</label>
+          <input type="number" id="poolTotal" value="30" min="0">
+        </div>
+        <div><span class="lbl">才能への配分残り</span><div class="num" id="poolRemaining">30</div></div>
+      </div>
+      <div class="note">
+        10D100(10個のd100の合計)を5回振り、最も高い結果を採用します。一桁目 0〜2→0 / 3〜7→5 / 8〜9→10 に四捨五入し、下限30ポイントとしてこのプールから配分します。才能能力は1ポイントで1上昇、HPは5ポイントで1上昇、BMPは10ポイントで1上昇します(HP・BMPは下の「レベル/HP/BMP」欄で入力)。配分した才能の値は、さらにその才能配下の技能(戦闘・生活・生産・移動・学問・抵抗・幸運・社交、という名称自体は技能ではなく技能をまとめる呼び名です)へ配分できます。
+      </div>
+    </div>
+  </section>
+
+  <!-- 才能能力 -->
+  <section>
+    <div class="sechead"><h2>才能能力</h2><span class="tag">TALENT STATS (0-100 / 平均50)</span></div>
+    <div class="secbody grid cols4" id="abilityGrid"></div>
+  </section>
+
+  <!-- 技能 -->
+  <section>
+    <div class="sechead"><h2>技能</h2><span class="tag">SKILLS (才能配下・目標値)</span></div>
+    <div class="secbody" id="skillContainer"></div>
+  </section>
+
+  <!-- レベル/HP/BMP -->
+  <section>
+    <div class="sechead"><h2>レベル / HP / BMP</h2><span class="tag">VITALS</span></div>
+    <div class="secbody">
+      <div class="grid cols4">
+        <div class="field"><label>レベル(0〜50)</label><input type="number" id="f_level" value="0" min="0" max="50"></div>
+        <div class="field"><label>経験値(EXP)</label><input type="number" id="f_exp" value="0" min="0"></div>
+        <div class="field"><label>次Lvまで必要EXP</label><input type="text" id="f_expNext" value="0" disabled></div>
+        <div class="field"><label>スキルポイント(参考)</label><input type="text" id="f_skillpoints" value="0" disabled></div>
+      </div>
+      <div class="grid cols2" style="margin-top:12px;">
+        <div class="field"><label>基本HP(初期上限24・平均12)</label><input type="number" id="f_hpBase" value="12" min="0"></div>
+        <div class="field"><label>BMP(上限なし・平均6)</label><input type="number" id="f_bmp" value="6" min="0"></div>
+      </div>
+      <div class="hp-parts">
+        <div class="hp-part"><div class="part-name">頭 (基本-2)</div><div class="part-val" id="hp_head">-</div></div>
+        <div class="hp-part"><div class="part-name">胴体 (基本+5)</div><div class="part-val" id="hp_torso">-</div></div>
+        <div class="hp-part"><div class="part-name">腕 (基本)</div><div class="part-val" id="hp_arm">-</div></div>
+        <div class="hp-part"><div class="part-name">足 (基本)</div><div class="part-val" id="hp_leg">-</div></div>
+      </div>
+      <div class="note">レベルが5の倍数に達するたび、部位HP・BMPの基本値に+1する運用を想定しています(自動加算はされません。手動で更新してください)。</div>
+    </div>
+  </section>
+
+  <!-- デス管理 -->
+  <section>
+    <div class="sechead"><h2>デス記録</h2><span class="tag">DEATH LOG</span></div>
+    <div class="secbody death-box">
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <div><span class="tag">デス数</span><div class="death-count" id="deathCount">0</div></div>
+        <button class="danger" id="btnDeath">デス+1を記録</button>
+        <div class="note" style="margin:0;flex:1;min-width:220px;">記録すると:全才能能力-5(下限0)、経験値から「現在レベル×2」を減算(下限0)。HP・BMPは変化しません。</div>
+      </div>
+      <ul id="deathLog"></ul>
+    </div>
+  </section>
+
+  <!-- 所持品/通貨 -->
+  <section>
+    <div class="sechead"><h2>所持品・通貨</h2><span class="tag">INVENTORY</span></div>
+    <div class="secbody">
+      <table>
+        <thead><tr><th style="width:40%;">品名</th><th style="width:15%;">数量</th><th>メモ</th><th style="width:30px;"></th></tr></thead>
+        <tbody id="invBody"></tbody>
+      </table>
+      <button id="btnAddItem" style="margin-top:10px;">+ 行を追加</button>
+      <div class="currency-grid">
+        <div class="field"><label>グロシン (帝国・国際通貨)</label><input type="number" id="cur_groshin" value="0"></div>
+        <div class="field"><label>ユーノ (テノス同盟)</label><input type="number" id="cur_yuno" value="0"></div>
+        <div class="field"><label>シャール (オーサレム)</label><input type="number" id="cur_shar" value="0"></div>
+        <div class="field"><label>トゥル (旧世界通貨)</label><input type="number" id="cur_toor" value="0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ココフォリア連携 -->
+  <section>
+    <div class="sechead"><h2>ココフォリア連携</h2><span class="tag">CCFOLIA EXPORT</span></div>
+    <div class="secbody">
+      <button id="btnCcfolia">ココフォリア用にコピー</button>
+      <span id="ccfoliaStatus" class="tag" style="margin-left:10px;"></span>
+      <div class="note">
+        ボタンを押すとこのキャラクターのデータがクリップボードにコピーされます。ココフォリアのルームを開き、盤面(前景)上で貼り付け(Ctrl+V、またはスマホは長押し→貼り付け)すると、能力値・技能・HP/BMP・所持金などが入ったキャラクター駒がそのまま作成されます。技能のチェック(1D100)もチャットパレットに自動登録されます。ダイスの成否判定(ロールプレイ上の「◯◯以下で成功」等)はコピー時点の数値のスナップショットなので、値を変更したら再度コピーしてください。写真を貼っている場合、データ量が大きくクリップボード貼り付けが失敗することがあります。その場合は写真なしの状態で試してください。
+      </div>
+      <div id="ccfoliaFallbackBox" style="display:none;margin-top:12px;">
+        <div class="note" style="margin-top:0;">自動コピーがブロックされました。下のテキストを全選択してコピーし、ココフォリアの盤面に貼り付けてください。</div>
+        <textarea id="ccfoliaFallbackText" style="min-height:120px;font-size:11px;" readonly></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- メモ -->
+  <section>
+    <div class="sechead"><h2>メモ</h2><span class="tag">BACKGROUND / FREE NOTES</span></div>
+    <div class="secbody">
+      <textarea id="f_notes" style="min-height:140px;" placeholder="背景・外見・キャラクター設定・その他自由記述"></textarea>
+    </div>
+  </section>
+
+</div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">確認 / CONFIRM</div>
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-actions">
+      <button id="confirmNo" class="ghost">キャンセル</button>
+      <button id="confirmYes" class="danger">実行する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ABILITIES = ["STR","VIT","DEX","AGI","INT","MND","LUK","CHA"];
+const ABILITY_LABEL = {STR:"力の強さ",VIT:"生命力",DEX:"器用さ",AGI:"素早さ",INT:"賢さ",MND:"精神力",LUK:"運の良さ",CHA:"魅力"};
+/* group: 才能の技能をまとめる呼び名(戦闘・生活・生産・移動・学問・抵抗・幸運・社交)であり、
+   これ自体は技能ではないため入力欄・ポイント配分の対象にはしない。表示上のラベルとしてのみ使う。 */
+const SKILL_MAP = {
+  STR:{group:"戦闘",subs:["遠隔","近接","投擲"]},
+  VIT:{group:"生活",subs:["生存","手当","自由"]},
+  DEX:{group:"生産",subs:["製作","発見","修復"]},
+  AGI:{group:"移動",subs:["回避","歩行","運転"]},
+  INT:{group:"学問",subs:["知識","鑑定","判断"]},
+  MND:{group:"抵抗",subs:["抵抗","対抗","治療"]},
+  LUK:{group:"幸運",subs:["幸運","手癖","発想"]},
+  CHA:{group:"社交",subs:["交渉","魅惑","統率"]},
+};
+const LEGACY_STORE_KEY = "macineraich_charsheet_v1";
+const ROSTER_KEY = "macineraich_roster_v1";
+const CURRENT_KEY = "macineraich_current_id";
+function charKey(id){ return "macineraich_char_"+id; }
+function genId(){ return "c_"+Date.now()+"_"+Math.random().toString(36).slice(2,8); }
+
+function defaultState(){
+  const abilities={}, skills={};
+  ABILITIES.forEach(a=>{
+    abilities[a]=0;
+    skills[a]={};
+    SKILL_MAP[a].subs.forEach(s=>skills[a][s]=0);
+  });
+  return {
+    basic:{name:"",age:"",height:"",weight:"",origin:"",affiliation:"",photo:""},
+    dice:{pool:30, lastRolls:[]},
+    abilities, skills,
+    level:0, exp:0, hpBase:12, bmp:6,
+    deathCount:0, deathLog:[],
+    inventory:[], currency:{groshin:0,yuno:0,shar:0,toor:0},
+    notes:""
+  };
+}
+let state = defaultState();
+let currentCharId = null;
+
+function getRoster(){
+  try{ return JSON.parse(localStorage.getItem(ROSTER_KEY))||[]; }catch(e){ return []; }
+}
+function setRoster(list){ localStorage.setItem(ROSTER_KEY, JSON.stringify(list)); }
+function loadCharacterState(id){
+  const raw=localStorage.getItem(charKey(id));
+  if(!raw) return defaultState();
+  try{ return Object.assign(defaultState(), JSON.parse(raw)); }catch(e){ return defaultState(); }
+}
+function persistCharacterState(id, st){
+  localStorage.setItem(charKey(id), JSON.stringify(st));
+}
+function upsertRosterEntry(id){
+  const list=getRoster();
+  const idx=list.findIndex(c=>c.id===id);
+  const entry={id, name: state.basic.name || "無名の探索者", updatedAt: Date.now()};
+  if(idx>=0) list[idx]=entry; else list.push(entry);
+  setRoster(list);
+}
+
+function saveState(){
+  persistCharacterState(currentCharId, state);
+  upsertRosterEntry(currentCharId);
+  renderRosterList();
+  const el=document.getElementById('saveStatus');
+  el.textContent="保存済み "+new Date().toLocaleTimeString();
+  clearTimeout(window.__saveMsgTimer);
+  window.__saveMsgTimer=setTimeout(()=>{el.textContent="";},2500);
+}
+
+function switchToCharacter(id){
+  currentCharId=id;
+  localStorage.setItem(CURRENT_KEY,id);
+  state=loadCharacterState(id);
+  renderAll();
+}
+function newCharacter(){
+  const id=genId();
+  currentCharId=id;
+  localStorage.setItem(CURRENT_KEY,id);
+  state=defaultState();
+  persistCharacterState(id,state);
+  upsertRosterEntry(id);
+  renderAll();
+}
+function duplicateCharacter(id){
+  const src=loadCharacterState(id);
+  const newIdVal=genId();
+  const copy=JSON.parse(JSON.stringify(src));
+  copy.basic.name=(copy.basic.name||"無名の探索者")+" のコピー";
+  persistCharacterState(newIdVal,copy);
+  const list=getRoster();
+  list.push({id:newIdVal,name:copy.basic.name,updatedAt:Date.now()});
+  setRoster(list);
+  switchToCharacter(newIdVal);
+}
+function deleteCharacter(id){
+  confirmAction("このキャラクターを削除します。元に戻せません。よろしいですか?", ()=>{
+    localStorage.removeItem(charKey(id));
+    const list=getRoster().filter(c=>c.id!==id);
+    setRoster(list);
+    if(currentCharId===id){
+      if(list.length>0){
+        switchToCharacter(list.slice().sort((a,b)=>b.updatedAt-a.updatedAt)[0].id);
+      }else{
+        newCharacter();
+      }
+    }else{
+      renderRosterList();
+    }
+  });
+}
+function escapeHtml(s){
+  const d=document.createElement("div"); d.textContent=s==null?"":String(s); return d.innerHTML;
+}
+function confirmAction(message, onYes){
+  const overlay=document.getElementById("confirmOverlay");
+  document.getElementById("confirmMessage").textContent=message;
+  overlay.style.display="flex";
+  const yesBtn=document.getElementById("confirmYes");
+  const noBtn=document.getElementById("confirmNo");
+  function cleanup(){
+    overlay.style.display="none";
+    yesBtn.removeEventListener("click",onYesClick);
+    noBtn.removeEventListener("click",onNoClick);
+    overlay.removeEventListener("click",onOverlayClick);
+  }
+  function onYesClick(){ cleanup(); onYes(); }
+  function onNoClick(){ cleanup(); }
+  function onOverlayClick(e){ if(e.target===overlay) cleanup(); }
+  yesBtn.addEventListener("click",onYesClick);
+  noBtn.addEventListener("click",onNoClick);
+  overlay.addEventListener("click",onOverlayClick);
+}
+function renderRosterList(){
+  const box=document.getElementById("rosterList");
+  if(!box) return;
+  const list=getRoster().slice().sort((a,b)=>b.updatedAt-a.updatedAt);
+  box.innerHTML="";
+  if(list.length===0){
+    box.innerHTML='<div class="note">キャラクターがありません。「+ 新規キャラクター」で作成してください。</div>';
+    return;
+  }
+  list.forEach(c=>{
+    const row=document.createElement("div");
+    row.className="roster-row"+(c.id===currentCharId?" active":"");
+    row.innerHTML=`
+      <span class="roster-name">${escapeHtml(c.name||"無名の探索者")}${c.id===currentCharId?' <span class="tag">(選択中)</span>':""}</span>
+      <span class="roster-date">${new Date(c.updatedAt).toLocaleString()}</span>
+      <span class="roster-actions">
+        <button data-act="load">読込</button>
+        <button data-act="dup">複製</button>
+        <button data-act="del" class="danger">削除</button>
+      </span>
+    `;
+    row.querySelector('[data-act="load"]').addEventListener("click",()=>switchToCharacter(c.id));
+    row.querySelector('[data-act="dup"]').addEventListener("click",()=>duplicateCharacter(c.id));
+    row.querySelector('[data-act="del"]').addEventListener("click",()=>deleteCharacter(c.id));
+    box.appendChild(row);
+  });
+}
+function bindRosterControls(){
+  document.getElementById("btnNewChar").addEventListener("click",()=>{
+    confirmAction("新しいキャラクターを作成します。現在のキャラクターは保存済みのまま残ります。よろしいですか?", newCharacter);
+  });
+}
+
+/* ---------- render: basic ---------- */
+function renderPhotoPreview(){
+  const box=document.getElementById("photoBox");
+  box.innerHTML="";
+  if(state.basic.photo){
+    const img=document.createElement("img");
+    img.src=state.basic.photo;
+    box.appendChild(img);
+  }else{
+    box.textContent="写真を貼り付け(クリックして選択)";
+  }
+}
+function bindBasic(){
+  const ids=["name","age","height","weight","origin","affiliation"];
+  ids.forEach(id=>{
+    const el=document.getElementById("f_"+id);
+    el.addEventListener("input",()=>{state.basic[id]=el.value; saveState();});
+  });
+  const box=document.getElementById("photoBox");
+  const input=document.getElementById("photoInput");
+  box.addEventListener("click",()=>input.click());
+  input.addEventListener("change",()=>{
+    const file=input.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ state.basic.photo=reader.result; renderPhotoPreview(); saveState(); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- dice ---------- */
+function rollD100(){ return Math.floor(Math.random()*100)+1; }
+function roll10d100(){ let sum=0; for(let i=0;i<10;i++) sum+=rollD100(); return sum; }
+function roundTo5(n){
+  const tens=Math.floor(n/10)*10;
+  const last=n%10;
+  let add;
+  if(last<=2) add=0; else if(last<=7) add=5; else add=10;
+  return tens+add;
+}
+function renderDiceRolls(rolls){
+  const resultsBox=document.getElementById("diceResults");
+  resultsBox.innerHTML="";
+  const max=Math.max(...rolls);
+  rolls.forEach((r,i)=>{
+    const card=document.createElement("div");
+    card.className="dice-card"+(r===max?" best":"");
+    card.innerHTML=`<div class="tag">${i+1}回目</div><div class="val">${r}</div>`;
+    const btn=document.createElement("button");
+    btn.textContent="採用";
+    btn.addEventListener("click",()=>{
+      const rounded=Math.max(30, roundTo5(r));
+      state.dice.pool=rounded;
+      document.getElementById("poolTotal").value=rounded;
+      document.getElementById("poolFinalDisplay").textContent=rounded;
+      recalcPool();
+      saveState();
+    });
+    card.appendChild(btn);
+    resultsBox.appendChild(card);
+  });
+}
+function bindDice(){
+  document.getElementById("btnRollDice").addEventListener("click",()=>{
+    const rolls=[roll10d100(),roll10d100(),roll10d100(),roll10d100(),roll10d100()];
+    state.dice.lastRolls=rolls;
+    renderDiceRolls(rolls);
+    saveState();
+  });
+  document.getElementById("poolTotal").addEventListener("input",()=>{
+    state.dice.pool=Number(document.getElementById("poolTotal").value)||0;
+    document.getElementById("poolFinalDisplay").textContent=state.dice.pool;
+    recalcPool();
+    saveState();
+  });
+}
+function recalcPool(){
+  const abilityUsed=ABILITIES.reduce((sum,a)=>sum+(Number(state.abilities[a])||0),0);
+  const hpCost=(Number(state.hpBase)||0)*5;
+  const bmpCost=(Number(state.bmp)||0)*10;
+  const used=abilityUsed+hpCost+bmpCost;
+  const remaining=state.dice.pool-used;
+  const el=document.getElementById("poolRemaining");
+  el.textContent=`${remaining} (才能${abilityUsed} + HP消費${hpCost} + BMP消費${bmpCost})`;
+  el.style.color=remaining<0?"var(--danger-bright)":"var(--toxic)";
+}
+
+/* ---------- abilities ---------- */
+function renderAbilities(){
+  const grid=document.getElementById("abilityGrid");
+  grid.innerHTML="";
+  ABILITIES.forEach(a=>{
+    const row=document.createElement("div");
+    row.className="ability-row";
+    row.innerHTML=`
+      <div class="ab-head"><span class="ab-name">${a}</span><span>${ABILITY_LABEL[a]}</span></div>
+      <input type="number" min="0" max="100" id="ab_${a}" value="${state.abilities[a]}">
+    `;
+    grid.appendChild(row);
+    const input=row.querySelector("input");
+    input.addEventListener("input",()=>{
+      state.abilities[a]=Number(input.value)||0;
+      recalcPool();
+      updateSkillBudget(a);
+      saveState();
+    });
+  });
+  recalcPool();
+}
+
+/* ---------- skills ---------- */
+function renderSkills(){
+  const container=document.getElementById("skillContainer");
+  container.innerHTML="";
+  ABILITIES.forEach(a=>{
+    const group=document.createElement("div");
+    group.className="skill-group";
+    const subNames=SKILL_MAP[a].subs;
+    group.innerHTML=`
+      <div class="sg-head">
+        <span class="ab-tag">${a} 「${SKILL_MAP[a].group}」配下技能</span>
+        <span class="remaining" id="budget_${a}"></span>
+      </div>
+      <div class="skill-list">
+        ${subNames.map(name=>`
+          <div class="skill-item field">
+            <label>${name}</label>
+            <input type="number" min="0" max="100" id="sk_${a}_${name}" value="${state.skills[a][name]||0}">
+          </div>
+        `).join("")}
+      </div>
+    `;
+    container.appendChild(group);
+    subNames.forEach(name=>{
+      const input=group.querySelector(`#sk_${a}_${name}`);
+      input.addEventListener("input",()=>{
+        state.skills[a][name]=Number(input.value)||0;
+        updateSkillBudget(a);
+        saveState();
+      });
+    });
+  });
+  ABILITIES.forEach(updateSkillBudget);
+}
+function updateSkillBudget(a){
+  const subNames=SKILL_MAP[a].subs;
+  const used=subNames.reduce((sum,name)=>sum+(Number(state.skills[a][name])||0),0);
+  const budgetEl=document.getElementById("budget_"+a);
+  const abilityScore=Number(state.abilities[a])||0;
+  const remaining=abilityScore-used;
+  budgetEl.textContent=`才能値${abilityScore} / 配分済${used} / 残${remaining}`;
+  budgetEl.className="remaining "+(remaining<0?"neg":"ok");
+}
+
+/* ---------- level / hp / bmp ---------- */
+function recalcVitals(){
+  const level=document.getElementById("f_level");
+  const hpBase=document.getElementById("f_hpBase");
+  const expNext=document.getElementById("f_expNext");
+  const skillpoints=document.getElementById("f_skillpoints");
+  const lv=Number(level.value)||0;
+  expNext.value=lv*10;
+  skillpoints.value=lv;
+  const base=Number(hpBase.value)||0;
+  document.getElementById("hp_head").textContent=Math.max(0,base-2);
+  document.getElementById("hp_torso").textContent=base+5;
+  document.getElementById("hp_arm").textContent=base;
+  document.getElementById("hp_leg").textContent=base;
+}
+function bindVitals(){
+  const level=document.getElementById("f_level");
+  const exp=document.getElementById("f_exp");
+  const hpBase=document.getElementById("f_hpBase");
+  const bmp=document.getElementById("f_bmp");
+
+  [level,exp,hpBase,bmp].forEach(el=>{
+    el.addEventListener("input",()=>{
+      state.level=Number(level.value)||0;
+      state.exp=Number(exp.value)||0;
+      state.hpBase=Number(hpBase.value)||0;
+      state.bmp=Number(bmp.value)||0;
+      recalcVitals();
+      recalcPool();
+      saveState();
+    });
+  });
+}
+
+/* ---------- death ---------- */
+function renderDeathLog(){
+  const ul=document.getElementById("deathLog");
+  ul.innerHTML="";
+  state.deathLog.slice().reverse().forEach(entry=>{
+    const li=document.createElement("li");
+    li.textContent=entry;
+    ul.appendChild(li);
+  });
+  document.getElementById("deathCount").textContent=state.deathCount;
+}
+function bindDeath(){
+  document.getElementById("btnDeath").addEventListener("click",()=>{
+    state.deathCount++;
+    ABILITIES.forEach(a=>{
+      state.abilities[a]=Math.max(0,(Number(state.abilities[a])||0)-5);
+      document.getElementById("ab_"+a).value=state.abilities[a];
+      updateSkillBudget(a);
+    });
+    const lv=state.level;
+    const lost=lv*2;
+    state.exp=Math.max(0,(Number(state.exp)||0)-lost);
+    document.getElementById("f_exp").value=state.exp;
+
+    recalcPool();
+    const msg=`デス#${state.deathCount}: 全才能-5 / EXP-${lost}(Lv.${lv}時) / HP・BMPは変化なし [${new Date().toLocaleString()}]`;
+    state.deathLog.push(msg);
+    renderDeathLog();
+    saveState();
+  });
+}
+
+/* ---------- inventory ---------- */
+function renderInventory(){
+  const body=document.getElementById("invBody");
+  body.innerHTML="";
+  state.inventory.forEach((item,idx)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><input type="text" value="${item.name||""}"></td>
+      <td><input type="number" value="${item.qty||0}"></td>
+      <td><input type="text" value="${item.memo||""}"></td>
+      <td><button class="row-del" title="削除">×</button></td>
+    `;
+    const [nameInput,qtyInput,memoInput]=tr.querySelectorAll("input");
+    nameInput.addEventListener("input",()=>{item.name=nameInput.value; saveState();});
+    qtyInput.addEventListener("input",()=>{item.qty=Number(qtyInput.value)||0; saveState();});
+    memoInput.addEventListener("input",()=>{item.memo=memoInput.value; saveState();});
+    tr.querySelector(".row-del").addEventListener("click",()=>{
+      state.inventory.splice(idx,1);
+      renderInventory();
+      saveState();
+    });
+    body.appendChild(tr);
+  });
+}
+function bindInventory(){
+  document.getElementById("btnAddItem").addEventListener("click",()=>{
+    state.inventory.push({name:"",qty:1,memo:""});
+    renderInventory();
+    saveState();
+  });
+  const curMap={groshin:"cur_groshin",yuno:"cur_yuno",shar:"cur_shar",toor:"cur_toor"};
+  Object.keys(curMap).forEach(key=>{
+    const el=document.getElementById(curMap[key]);
+    el.addEventListener("input",()=>{
+      state.currency[key]=Number(el.value)||0;
+      saveState();
+    });
+  });
+}
+
+/* ---------- notes ---------- */
+function bindNotes(){
+  const el=document.getElementById("f_notes");
+  el.addEventListener("input",()=>{state.notes=el.value; saveState();});
+}
+
+/* ---------- ccfolia export ---------- */
+function buildCcfoliaData(){
+  const hpBase=Number(state.hpBase)||0;
+  const bmp=Number(state.bmp)||0;
+  const headHP=Math.max(0,hpBase-2);
+  const torsoHP=hpBase+5;
+  const armHP=hpBase;
+  const legHP=hpBase;
+
+  const status=[
+    {label:"HP", value:String(hpBase), max:String(hpBase)},
+    {label:"BMP", value:String(bmp), max:String(bmp)},
+    {label:"頭部HP", value:String(headHP), max:String(headHP)},
+    {label:"胴体HP", value:String(torsoHP), max:String(torsoHP)},
+    {label:"腕HP", value:String(armHP), max:String(armHP)},
+    {label:"脚HP", value:String(legHP), max:String(legHP)},
+  ];
+
+  const params=[];
+  params.push({label:"レベル", value:String(state.level||0)});
+  params.push({label:"EXP", value:String(state.exp||0)});
+  ABILITIES.forEach(a=>{
+    params.push({label:`${a}(${ABILITY_LABEL[a]})`, value:String(state.abilities[a]||0)});
+  });
+  ABILITIES.forEach(a=>{
+    SKILL_MAP[a].subs.forEach(name=>{
+      params.push({label:`${a}-${name}`, value:String(state.skills[a][name]||0)});
+    });
+  });
+  params.push({label:"グロシン", value:String(state.currency.groshin||0)});
+  params.push({label:"ユーノ", value:String(state.currency.yuno||0)});
+  params.push({label:"シャール", value:String(state.currency.shar||0)});
+  params.push({label:"トゥル", value:String(state.currency.toor||0)});
+  params.push({label:"デス数", value:String(state.deathCount||0)});
+
+  const commandLines=[];
+  ABILITIES.forEach(a=>{
+    commandLines.push(`1D100<=${Number(state.abilities[a])||0} ${a}判定(${ABILITY_LABEL[a]})`);
+  });
+  ABILITIES.forEach(a=>{
+    SKILL_MAP[a].subs.forEach(name=>{
+      commandLines.push(`1D100<=${Number(state.skills[a][name])||0} ${a}-${name}`);
+    });
+  });
+
+  const memoLines=[
+    `年齢:${state.basic.age||""} / 身長:${state.basic.height||""} / 体重:${state.basic.weight||""}`,
+    `出身:${state.basic.origin||""}`,
+    `所属:${state.basic.affiliation||""}`,
+    "",
+    state.notes||""
+  ];
+
+  return {
+    kind:"character",
+    data:{
+      name: state.basic.name || "無名の探索者",
+      memo: memoLines.join("\n"),
+      initiative: Number(state.abilities.AGI)||0,
+      externalUrl: "",
+      iconUrl: state.basic.photo || "",
+      status,
+      params,
+      active:true,
+      secret:false,
+      invisible:false,
+      hideStatus:false,
+      color:"#ffffff",
+      commands: commandLines.join("\n")
+    }
+  };
+}
+
+function showCcfoliaFallback(json){
+  const box=document.getElementById("ccfoliaFallbackBox");
+  const ta=document.getElementById("ccfoliaFallbackText");
+  ta.value=json;
+  box.style.display="block";
+  ta.focus();
+  ta.select();
+}
+
+function bindCcfolia(){
+  document.getElementById("btnCcfolia").addEventListener("click",()=>{
+    const json=JSON.stringify(buildCcfoliaData());
+    const statusEl=document.getElementById("ccfoliaStatus");
+    const done=()=>{
+      statusEl.textContent="コピーしました("+new Date().toLocaleTimeString()+")";
+      clearTimeout(window.__ccfoliaMsgTimer);
+      window.__ccfoliaMsgTimer=setTimeout(()=>{statusEl.textContent="";},3000);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(json).then(done).catch(()=>showCcfoliaFallback(json));
+    }else{
+      showCcfoliaFallback(json);
+    }
+  });
+}
+
+/* ---------- toolbar ---------- */
+function bindToolbar(){
+  document.getElementById("btnSave").addEventListener("click",saveState);
+  document.getElementById("btnPrint").addEventListener("click",()=>window.print());
+  document.getElementById("btnReset").addEventListener("click",()=>{
+    confirmAction("このキャラクターの入力内容を全て初期化します。よろしいですか?(他のキャラクターには影響しません)", performReset);
+  });
+}
+
+function performReset(){
+  state = defaultState();
+  persistCharacterState(currentCharId, state);
+  upsertRosterEntry(currentCharId);
+  renderAll();
+}
+
+/* ---------- render all (used on load/new/duplicate/reset) ---------- */
+function renderAll(){
+  // 基本情報
+  ["name","age","height","weight","origin","affiliation"].forEach(id=>{
+    document.getElementById("f_"+id).value=state.basic[id]||"";
+  });
+  renderPhotoPreview();
+
+  // ダイス
+  document.getElementById("diceResults").innerHTML="";
+  if(state.dice.lastRolls && state.dice.lastRolls.length) renderDiceRolls(state.dice.lastRolls);
+  document.getElementById("poolTotal").value=state.dice.pool;
+  document.getElementById("poolFinalDisplay").textContent=state.dice.pool;
+
+  // 才能・技能
+  renderAbilities();
+  renderSkills();
+
+  // レベル/HP/BMP
+  document.getElementById("f_level").value=state.level;
+  document.getElementById("f_exp").value=state.exp;
+  document.getElementById("f_hpBase").value=state.hpBase;
+  document.getElementById("f_bmp").value=state.bmp;
+  recalcVitals();
+
+  // デス記録
+  renderDeathLog();
+
+  // 所持品・通貨
+  renderInventory();
+  document.getElementById("cur_groshin").value=state.currency.groshin||0;
+  document.getElementById("cur_yuno").value=state.currency.yuno||0;
+  document.getElementById("cur_shar").value=state.currency.shar||0;
+  document.getElementById("cur_toor").value=state.currency.toor||0;
+
+  // メモ
+  document.getElementById("f_notes").value=state.notes||"";
+
+  recalcPool();
+  renderRosterList();
+}
+
+/* ---------- init ---------- */
+function init(){
+  let roster=getRoster();
+
+  // 旧バージョン(単一キャラ保存)のデータが残っていれば1体目として引き継ぐ
+  if(roster.length===0){
+    const legacyRaw=localStorage.getItem(LEGACY_STORE_KEY);
+    if(legacyRaw){
+      try{
+        const legacyState=Object.assign(defaultState(), JSON.parse(legacyRaw));
+        const id=genId();
+        persistCharacterState(id, legacyState);
+        setRoster([{id, name: legacyState.basic.name||"無名の探索者", updatedAt: Date.now()}]);
+        localStorage.removeItem(LEGACY_STORE_KEY);
+        roster=getRoster();
+      }catch(e){ /* 読み込めなければ無視して新規作成に進む */ }
+    }
+  }
+
+  let cid=localStorage.getItem(CURRENT_KEY);
+  if(!cid || !roster.find(c=>c.id===cid)){
+    if(roster.length>0){
+      cid=roster.slice().sort((a,b)=>b.updatedAt-a.updatedAt)[0].id;
+    }else{
+      cid=genId();
+      persistCharacterState(cid, defaultState());
+      setRoster([{id:cid, name:"無名の探索者", updatedAt:Date.now()}]);
+    }
+  }
+  currentCharId=cid;
+  localStorage.setItem(CURRENT_KEY, cid);
+  state=loadCharacterState(cid);
+
+  bindBasic();
+  bindDice();
+  bindVitals();
+  bindDeath();
+  bindInventory();
+  bindNotes();
+  bindToolbar();
+  bindRosterControls();
+  bindCcfolia();
+
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
