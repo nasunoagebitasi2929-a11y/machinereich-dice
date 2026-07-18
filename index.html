@@ -168,6 +168,28 @@
   .room-hint{ font-size:11px; color:var(--ash); margin-top:4px; }
   .room-error{ color:var(--blood-bright); font-size:12px; margin-top:6px; display:none; }
   .log-body .p{ color:var(--toxic-bright); font-weight:600; margin-right:4px; }
+
+  /* EXPLORER IMPORT */
+  .explorer{
+    background:var(--panel2); border:2px solid var(--edge);
+    padding:14px 16px; margin-bottom:22px;
+  }
+  .explorer-status{
+    font-size:12px; letter-spacing:0.04em; color:var(--ash); display:flex; align-items:center; gap:6px; margin-bottom:10px;
+  }
+  .explorer-status .dot{ width:8px; height:8px; border-radius:50%; background:var(--ash); display:inline-block; }
+  .explorer-status.loaded .dot{ background:var(--toxic-bright); box-shadow:0 0 6px var(--toxic-bright); }
+  .explorer-status.loaded{ color:var(--toxic-bright); }
+  .explorer-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .explorer-row textarea{
+    width:100%; min-height:60px; background:var(--void); border:1px solid var(--edge); color:var(--bone);
+    font-family:'JetBrains Mono', monospace; font-size:12px; padding:8px 10px; border-radius:1px; resize:vertical;
+  }
+  select{
+    width:100%; background:var(--void); border:1px solid var(--edge); color:var(--bone);
+    font-family:'JetBrains Mono', monospace; font-size:14px; padding:8px 10px; border-radius:1px;
+  }
+  select:focus{ outline:none; border-color:var(--toxic); }
   .field{ margin-bottom:14px; }
   .field label{
     display:block; font-size:11px; letter-spacing:0.08em; color:var(--ash);
@@ -260,6 +282,22 @@
     </div>
   </div>
 
+  <div class="explorer">
+    <div class="explorer-status" id="explorerStatus"><span class="dot"></span><span id="explorerStatusText">探索者: 未インポート</span></div>
+    <div class="explorer-row">
+      <button class="room-btn" id="btnPasteExplorer" style="flex:1;">クリップボードから貼り付けてインポート</button>
+      <button class="room-btn leave" id="btnClearExplorer" style="display:none;">解除</button>
+    </div>
+    <div class="explorer-row">
+      <textarea id="explorerFallbackText" placeholder="クリップボードからの読み取りが失敗した場合は、探索者登録証の「ココフォリア用にコピー」でコピーした内容をここに直接貼り付けて、下のボタンを押してください"></textarea>
+    </div>
+    <div class="explorer-row">
+      <button class="room-btn" id="btnImportFromText" style="flex:1;">上のテキストから読み込む</button>
+    </div>
+    <div class="room-hint">探索者登録証(マシーネライヒ_探索者登録証.html)の「ココフォリア用にコピー」ボタンでコピーした内容をそのまま使えます。この端末内(localStorage)に保存され、他の人には送信されません。</div>
+    <div class="room-error" id="explorerError"></div>
+  </div>
+
   <div class="readout" id="readout"></div>
 
   <nav class="tabs">
@@ -287,6 +325,10 @@
   </section>
 
   <section class="panel" id="panel-skill">
+    <div class="field">
+      <label>技能テンプレート(インポート済みの探索者から選択)</label>
+      <select id="skillTemplate"><option value="">(手動入力)</option></select>
+    </div>
     <div class="row">
       <div class="field">
         <label>目標値</label>
@@ -555,6 +597,146 @@
     }
   })();
 
+  // ---------- explorer import (from ccfolia-copy JSON) ----------
+  const EXPLORER_KEY = 'mr_dice_explorer_v1';
+  let explorer = null; // {name, abilityEntries:[{key,jp,value}], skillEntries:[{key,name,value}]}
+
+  const explorerStatusEl = document.getElementById('explorerStatus');
+  const explorerStatusTextEl = document.getElementById('explorerStatusText');
+  const explorerErrorEl = document.getElementById('explorerError');
+  const btnClearExplorer = document.getElementById('btnClearExplorer');
+  const skillTemplateSelect = document.getElementById('skillTemplate');
+
+  function showExplorerError(msg){
+    explorerErrorEl.textContent = msg;
+    explorerErrorEl.style.display = 'block';
+  }
+  function clearExplorerError(){
+    explorerErrorEl.style.display = 'none';
+  }
+
+  function parseCcfoliaCharacter(text){
+    let obj;
+    try{ obj = JSON.parse(text); }
+    catch(e){ throw new Error('JSONとして読み取れませんでした。コピーした内容をそのまま貼り付けてください。'); }
+    if(!obj || obj.kind !== 'character' || !obj.data){
+      throw new Error('探索者データの形式ではありません(「ココフォリア用にコピー」の内容を貼り付けてください)');
+    }
+    const data = obj.data;
+    const params = Array.isArray(data.params) ? data.params : [];
+    const abilityEntries = [];
+    const skillEntries = [];
+    params.forEach(p=>{
+      const label = String(p && p.label || '');
+      const value = Number(p && p.value) || 0;
+      const abilityMatch = label.match(/^([A-Z]+)\(([^)]+)\)$/);
+      const skillMatch = label.match(/^([A-Z]+)-(.+)$/);
+      if(abilityMatch){
+        abilityEntries.push({key: abilityMatch[1], jp: abilityMatch[2], value});
+      } else if(skillMatch){
+        skillEntries.push({key: skillMatch[1], name: skillMatch[2], value});
+      }
+    });
+    return { name: data.name || '無名の探索者', abilityEntries, skillEntries };
+  }
+
+  function renderExplorerStatus(){
+    if(explorer){
+      explorerStatusEl.classList.add('loaded');
+      explorerStatusTextEl.textContent = '探索者: ' + explorer.name;
+      btnClearExplorer.style.display = 'inline-block';
+    } else {
+      explorerStatusEl.classList.remove('loaded');
+      explorerStatusTextEl.textContent = '探索者: 未インポート';
+      btnClearExplorer.style.display = 'none';
+    }
+    renderSkillTemplateOptions();
+  }
+
+  function renderSkillTemplateOptions(){
+    skillTemplateSelect.innerHTML = '<option value="">(手動入力)</option>';
+    if(!explorer) return;
+    if(explorer.abilityEntries.length){
+      const og = document.createElement('optgroup');
+      og.label = '才能判定';
+      explorer.abilityEntries.forEach(a=>{
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({label: a.key + '判定(' + a.jp + ')', value: a.value});
+        opt.textContent = a.key + '判定(' + a.jp + ') - ' + a.value;
+        og.appendChild(opt);
+      });
+      skillTemplateSelect.appendChild(og);
+    }
+    if(explorer.skillEntries.length){
+      const og = document.createElement('optgroup');
+      og.label = '技能判定';
+      explorer.skillEntries.forEach(s=>{
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({label: s.key + '-' + s.name, value: s.value});
+        opt.textContent = s.key + '-' + s.name + ' - ' + s.value;
+        og.appendChild(opt);
+      });
+      skillTemplateSelect.appendChild(og);
+    }
+  }
+
+  function applyExplorerImport(text){
+    clearExplorerError();
+    try{
+      explorer = parseCcfoliaCharacter(text);
+      localStorage.setItem(EXPLORER_KEY, JSON.stringify(explorer));
+      renderExplorerStatus();
+      document.getElementById('explorerFallbackText').value = '';
+    }catch(e){
+      showExplorerError(e && e.message ? e.message : '読み込みに失敗しました');
+    }
+  }
+
+  document.getElementById('btnPasteExplorer').addEventListener('click', async ()=>{
+    clearExplorerError();
+    try{
+      if(!navigator.clipboard || !navigator.clipboard.readText){
+        throw new Error('この端末ではクリップボードの自動読み取りに対応していません。下のテキスト欄に貼り付けてください。');
+      }
+      const text = await navigator.clipboard.readText();
+      applyExplorerImport(text);
+    }catch(e){
+      showExplorerError((e && e.message ? e.message : '読み取りに失敗しました') + ' 下のテキスト欄に貼り付けて「上のテキストから読み込む」を押してください。');
+    }
+  });
+  document.getElementById('btnImportFromText').addEventListener('click', ()=>{
+    applyExplorerImport(document.getElementById('explorerFallbackText').value);
+  });
+  document.getElementById('btnClearExplorer').addEventListener('click', ()=>{
+    explorer = null;
+    localStorage.removeItem(EXPLORER_KEY);
+    renderExplorerStatus();
+  });
+
+  // ページ読み込み時に前回インポートした探索者を復元
+  (function(){
+    try{
+      const raw = localStorage.getItem(EXPLORER_KEY);
+      if(raw){ explorer = JSON.parse(raw); }
+    }catch(e){ explorer = null; }
+    renderExplorerStatus();
+  })();
+
+  let currentSkillLabel = '';
+  skillTemplateSelect.addEventListener('change', ()=>{
+    const v = skillTemplateSelect.value;
+    if(!v){ currentSkillLabel = ''; return; }
+    try{
+      const parsed = JSON.parse(v);
+      document.getElementById('skillTarget').value = parsed.value;
+      currentSkillLabel = parsed.label;
+    }catch(e){ currentSkillLabel = ''; }
+  });
+  document.getElementById('skillTarget').addEventListener('input', ()=>{
+    currentSkillLabel = '';
+    skillTemplateSelect.value = '';
+  });
+
   // ---------- dice template buttons ----------
   let lastDieSides = null;
   let lastDieCount = 0;
@@ -695,9 +877,10 @@
     const {result, net} = rollPercentile(bonus, penalty);
     const j = judge(result, target);
     const netLabel = net === 0 ? '補正なし' : (net > 0 ? 'ボーナス+'+net : 'ペナルティ'+Math.abs(net));
-    const detail = 'd100 ≤ ' + target + ' (' + netLabel + ')';
+    const label = currentSkillLabel ? currentSkillLabel : '技能判定';
+    const detail = label + ' d100 ≤ ' + target + ' (' + netLabel + ')';
     showReadout(detail, result, j.label, j.tier);
-    const entryText = '技能判定 目標'+target+' ('+netLabel+') → '+result+' 【'+j.label+'】';
+    const entryText = label + ' 目標'+target+' ('+netLabel+') → '+result+' 【'+j.label+'】';
     if(roomCode){ pushEntry(entryText); } else { addLog(entryText); }
   });
 
