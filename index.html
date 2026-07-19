@@ -448,7 +448,19 @@
   }
 
   async function ghGetFile(code){
-    // 読み取りは認証不要(公開リポジトリのraw経由、キャッシュ回避のためタイムスタンプ付与)
+    if(ghToken){
+      // トークンありならAPI経由で読む(キャッシュされず確実に最新)
+      const res = await fetch(GH_API + code + '.json', {
+        headers: { 'Authorization': 'Bearer ' + ghToken, 'Accept': 'application/vnd.github+json' }
+      });
+      if(res.status === 404) return {exists:false, arr:[]};
+      if(!res.ok) throw new Error('HTTPステータス ' + res.status);
+      const info = await res.json();
+      let arr = [];
+      try{ arr = JSON.parse(b64DecodeUtf8(info.content.replace(/\n/g, ''))); }catch(e){ arr = []; }
+      return {exists:true, arr: Array.isArray(arr) ? arr : []};
+    }
+    // トークンなし(閲覧のみ)はraw経由。CDNキャッシュにより数分反映が遅れる場合がある
     const res = await fetch(GH_RAW + code + '.json?t=' + Date.now());
     if(res.status === 404) return {exists:false, arr:[]};
     if(!res.ok) throw new Error('HTTPステータス ' + res.status);
