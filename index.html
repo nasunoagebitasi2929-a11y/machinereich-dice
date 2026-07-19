@@ -491,7 +491,7 @@
       headers: {
         'Authorization': 'Bearer ' + ghToken,
         'Accept': 'application/vnd.github+json',
-        'Content-Type': 'text/plain'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     });
@@ -517,7 +517,8 @@
       enterRoomUI();
       startPolling();
     }catch(e){
-      showRoomError('ルームの作成に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ')。');
+      const tokenInfo = 'トークン長:' + ghToken.length + ' 先頭:' + ghToken.slice(0,6) + '... 種別:' + (e && e.name ? e.name : '?');
+      showRoomError('ルームの作成に失敗しました(' + (e && e.message ? e.message : '不明なエラー') + ' / ' + tokenInfo + ')。');
     }finally{
       document.getElementById('btnCreateRoom').disabled = false;
     }
@@ -537,7 +538,8 @@
       enterRoomUI();
       startPolling();
     }catch(e){
-      showRoomError('ルームに参加できませんでした(' + (e && e.message ? e.message : '不明なエラー') + ')。コードを確認してください。');
+      const tokenInfo = ghToken ? ('トークン長:' + ghToken.length + ' 種別:' + (e && e.name ? e.name : '?')) : 'トークンなし';
+      showRoomError('ルームに参加できませんでした(' + (e && e.message ? e.message : '不明なエラー') + ' / ' + tokenInfo + ')。コードを確認してください。');
     }finally{
       document.getElementById('btnJoinRoom').disabled = false;
     }
