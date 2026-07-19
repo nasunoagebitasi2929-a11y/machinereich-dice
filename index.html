@@ -271,6 +271,10 @@
         <button class="room-btn" id="btnCreateRoom" style="flex:1;">新規ルームを作成</button>
       </div>
       <div class="room-hint">招待リンクを受け取った場合は、上のトークン欄は空欄のままで大丈夫です。合言葉(ルームコード)に機密情報を含めないでください。</div>
+      <div class="room-row">
+        <button class="room-btn" id="btnDiagTest" style="flex:1;">通信診断テスト</button>
+      </div>
+      <div class="room-hint" id="diagResult"></div>
       <div class="room-error" id="roomError"></div>
     </div>
 
@@ -593,6 +597,37 @@
       '<div class="entry"><span class="t">'+escapeHtml(l.t)+'</span><span class="p">['+escapeHtml(l.player)+']</span>'+escapeHtml(l.text)+'</div>'
     ).join('');
   }
+
+  document.getElementById('btnDiagTest').addEventListener('click', async ()=>{
+    const el = document.getElementById('diagResult');
+    el.textContent = '診断中...';
+    const results = [];
+
+    // テスト1: 認証なし・単純リクエスト(プリフライトなし)
+    try{
+      const r1 = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO);
+      results.push('①認証なし単純GET: 成功(HTTP ' + r1.status + ')');
+    }catch(e1){
+      results.push('①認証なし単純GET: 失敗(' + (e1.message||e1) + ')');
+    }
+
+    // テスト2: 認証あり(Authorizationヘッダーでプリフライト発生)
+    const tok = document.getElementById('githubToken').value.trim();
+    if(tok){
+      try{
+        const r2 = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO, {
+          headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        results.push('②認証ありGET: 成功(HTTP ' + r2.status + ')');
+      }catch(e2){
+        results.push('②認証ありGET: 失敗(' + (e2.message||e2) + ')');
+      }
+    } else {
+      results.push('②認証ありGET: トークン欄が空のためスキップ');
+    }
+
+    el.innerHTML = results.join('<br>');
+  });
 
   document.getElementById('btnCreateRoom').addEventListener('click', createRoom);
   document.getElementById('btnJoinRoom').addEventListener('click', joinRoom);
