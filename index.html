@@ -283,6 +283,7 @@
       <div class="room-code-display" id="roomCodeDisplay"></div>
       <div class="room-hint" id="inviteLinkHint" style="display:none;">招待リンク(これを他のプレイヤーに送ると、トークン入力なしで書き込み参加できます):</div>
       <div class="room-code-display" id="inviteLinkDisplay" style="font-size:12px; display:none;"></div>
+      <button class="room-btn" id="btnRefreshRoom">今すぐ更新</button>
       <button class="room-btn leave" id="btnLeaveRoom">ルームを退出</button>
     </div>
   </div>
@@ -581,12 +582,20 @@
 
   function startPolling(){
     pollRoom();
-    pollTimer = setInterval(pollRoom, 4000);
+    pollTimer = setInterval(pollRoom, 2000);
   }
   function stopPolling(){
     if(pollTimer) clearInterval(pollTimer);
     pollTimer = null;
   }
+
+  // 画面がバックグラウンドから復帰した瞬間に、タイマーを待たずに即再取得する
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && roomCode){ pollRoom(); }
+  });
+  window.addEventListener('focus', ()=>{
+    if(roomCode){ pollRoom(); }
+  });
 
   function renderRoomLog(arr){
     if(!arr || arr.length === 0){
@@ -640,6 +649,7 @@
   document.getElementById('btnCreateRoom').addEventListener('click', createRoom);
   document.getElementById('btnJoinRoom').addEventListener('click', joinRoom);
   document.getElementById('btnLeaveRoom').addEventListener('click', leaveRoom);
+  document.getElementById('btnRefreshRoom').addEventListener('click', pollRoom);
 
   // ---------- 招待リンク(?room=...&token=...)からの自動参加 ----------
   (function(){
