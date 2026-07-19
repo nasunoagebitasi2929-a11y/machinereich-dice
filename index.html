@@ -603,6 +603,14 @@
     el.textContent = '診断中...';
     const results = [];
 
+    // テスト0: 同一オリジン(このGitHub Pages自体)へのfetch
+    try{
+      const r0 = await fetch(location.href, {cache: 'no-store'});
+      results.push('⓪同一オリジンfetch: 成功(HTTP ' + r0.status + ')');
+    }catch(e0){
+      results.push('⓪同一オリジンfetch: 失敗(' + (e0.message||e0) + ')');
+    }
+
     // テスト1: 認証なし・単純リクエスト(プリフライトなし)
     try{
       const r1 = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO);
